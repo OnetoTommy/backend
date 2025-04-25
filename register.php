@@ -1,10 +1,20 @@
 <?php
 // CORS 处理
-header("Access-Control-Allow-Origin: https://bespoke-halva-fdb945.netlify.app"); // ← 根据你的Netlify地址改
-header("Access-Control-Allow-Credentials: true");
-header("Access-Control-Allow-Headers: Content-Type");
-header("Access-Control-Allow-Methods: POST, GET, OPTIONS");
-header("Content-Type: application/json");
+$allowed_origins = [
+    "https://bespoke-halva-fdb945.netlify.app",
+    "https://stirring-hummingbird-de4c7f.netlify.app",
+    "http://localhost:3000"  // 本地开发调试也可以加上
+  ];
+  
+  $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+  if (in_array($origin, $allowed_origins)) {
+      header("Access-Control-Allow-Origin: $origin");
+      header("Access-Control-Allow-Credentials: true");
+  }
+  
+  header("Access-Control-Allow-Headers: Content-Type");
+  header("Access-Control-Allow-Methods: POST, GET, OPTIONS");
+  header("Content-Type: application/json");
 
 // 预检请求快速返回
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
