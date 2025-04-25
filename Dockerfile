@@ -1,8 +1,13 @@
-# 使用 PHP 8.2 的 Apache 镜像
 FROM php:8.2-apache
 
-# 拷贝当前目录所有文件到 Web 根目录
+# 安装依赖项
+RUN docker-php-ext-install pdo pdo_mysql
+
+# 拷贝网站代码到容器
 COPY . /var/www/html/
 
-# 可选：开启 URL 重写
+# 启用 Apache rewrite 模块（如果你需要）
 RUN a2enmod rewrite
+
+# 设置工作目录
+WORKDIR /var/www/html
