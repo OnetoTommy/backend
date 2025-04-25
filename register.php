@@ -1,38 +1,34 @@
 <?php
-// CORS 处理
-$allowed_origins = [
-    "https://bespoke-halva-fdb945.netlify.app",
-    "https://stirring-hummingbird-de4c7f.netlify.app",
-    "https://super-hotteok-14c488.netlify.app",
-    "http://localhost:3000"  // 本地开发调试也可以加上
-  ];
-  
-  $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
-  if (in_array($origin, $allowed_origins)) {
-      header("Access-Control-Allow-Origin: $origin");
-      header("Access-Control-Allow-Credentials: true");
-  }
-  
-  header("Access-Control-Allow-Headers: Content-Type");
-  header("Access-Control-Allow-Methods: POST, GET, OPTIONS");
-  header("Content-Type: application/json");
-
-// 预检请求快速返回
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    exit(0);
-}
-
-// 开启错误日志
+ob_start();
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 ini_set('log_errors', 1);
 ini_set('error_log', 'php-error.log');
 
-// 调试日志
-file_put_contents("log.txt", print_r($_POST, true), FILE_APPEND);
+// ===== CORS 设置 =====
+$allowed_origins = [
+    "https://bespoke-halva-fdb945.netlify.app",
+    "https://stirring-hummingbird-de4c7f.netlify.app",
+    "https://super-hotteok-14c488.netlify.app",
+    "http://localhost:3000"
+];
 
+$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+if (in_array($origin, $allowed_origins)) {
+    header("Access-Control-Allow-Origin: $origin");
+    header("Access-Control-Allow-Credentials: true");
+}
+
+header("Access-Control-Allow-Headers: Content-Type");
+header("Access-Control-Allow-Methods: POST, GET, OPTIONS");
+header("Content-Type: application/json");
+
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    exit(0);
+}
+
+// ===== 主逻辑 =====
 include 'connect.php';
-ob_start();
 
 $response = ['status' => 'error', 'message' => 'Unknown error occurred.'];
 
@@ -47,33 +43,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (!$firstName || !$lastName || !$email || !$password) {
             $response['message'] = "Missing required fields.";
-            echo json_encode($response); exit();
-        }
-
-        $checkEmail = $conn->prepare("SELECT * FROM users WHERE email = :email");
-        $checkEmail->bindParam(':email', $email);
-        $checkEmail->execute();
-
-        if ($checkEmail->rowCount() > 0) {
-            $response['message'] = "Email already exists.";
         } else {
-            $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
-            $insertQuery = $conn->prepare("INSERT INTO users (firstName, lastName, email, password) VALUES (:firstName, :lastName, :email, :password)");
-            $insertQuery->bindParam(':firstName', $firstName);
-            $insertQuery->bindParam(':lastName', $lastName);
-            $insertQuery->bindParam(':email', $email);
-            $insertQuery->bindParam(':password', $hashedPassword);
+            try {
+                $check = $conn->prepare("SELECT * FROM users WHERE email = :email");
+                $check->bindParam(':email', $email);
+                $check->execute();
 
-            if ($insertQuery->execute()) {
-                $response = ['status' => 'success', 'message' => 'User registered successfully.'];
-            } else {
-                $response['message'] = "Failed to register user: " . $insertQuery->errorInfo()[2];
+                if ($check->rowCount() > 0) {
+                    $response['message'] = "Email already exists.";
+                } else {
+                    $hashed = password_hash($password, PASSWORD_DEFAULT);
+                    $insert = $conn->prepare("INSERT INTO users (firstName, lastName, email, password) VALUES (:f, :l, :e, :p)");
+                    $insert->bindParam(':f', $firstName);
+                    $insert->bindParam(':l', $lastName);
+                    $insert->bindParam(':e', $email);
+                    $insert->bindParam(':p', $hashed);
+
+                    if ($insert->execute()) {
+                        $response = ['status' => 'success', 'message' => 'User registered successfully'];
+                    } else {
+                        $response['message'] = "Failed to insert: " . $insert->errorInfo()[2];
+                    }
+                }
+            } catch (PDOException $e) {
+                $response['message'] = "PDO error: " . $e->getMessage();
             }
         }
     }
 }
 
-ob_clean();
+ob_end_clean();
 echo json_encode($response);
 exit();
 ?>
