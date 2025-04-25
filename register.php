@@ -1,10 +1,24 @@
 <?php
+// CORS 处理
+header("Access-Control-Allow-Origin: https://bespoke-halva-fdb945.netlify.app"); // ← 根据你的Netlify地址改
+header("Access-Control-Allow-Credentials: true");
+header("Access-Control-Allow-Headers: Content-Type");
+header("Access-Control-Allow-Methods: POST, GET, OPTIONS");
+header("Content-Type: application/json");
+
+// 预检请求快速返回
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    exit(0);
+}
+
+// 开启错误日志
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
+ini_set('log_errors', 1);
+ini_set('error_log', 'php-error.log');
 
-header("Access-Control-Allow-Origin: *"); // ✅ Important for Frontend site
-header("Access-Control-Allow-Credentials: true");
-header("Content-Type: application/json");
+// 调试日志
+file_put_contents("log.txt", print_r($_POST, true), FILE_APPEND);
 
 include 'connect.php';
 ob_start();
@@ -22,11 +36,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (!$firstName || !$lastName || !$email || !$password) {
             $response['message'] = "Missing required fields.";
-            echo json_encode($response);
-            exit();
+            echo json_encode($response); exit();
         }
 
-        // Check if email exists
         $checkEmail = $conn->prepare("SELECT * FROM users WHERE email = :email");
         $checkEmail->bindParam(':email', $email);
         $checkEmail->execute();
@@ -35,7 +47,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $response['message'] = "Email already exists.";
         } else {
             $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
-
             $insertQuery = $conn->prepare("INSERT INTO users (firstName, lastName, email, password) VALUES (:firstName, :lastName, :email, :password)");
             $insertQuery->bindParam(':firstName', $firstName);
             $insertQuery->bindParam(':lastName', $lastName);
@@ -45,28 +56,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($insertQuery->execute()) {
                 $response = ['status' => 'success', 'message' => 'User registered successfully.'];
             } else {
-                $response['message'] = "Failed to register user.";
+                $response['message'] = "Failed to register user: " . $insertQuery->errorInfo()[2];
             }
-        }
-    } elseif ($action === 'signIn') {
-        $email = $_POST['email'] ?? '';
-        $password = $_POST['password'] ?? '';
-
-        $sql = $conn->prepare("SELECT * FROM users WHERE email = :email");
-        $sql->bindParam(':email', $email);
-        $sql->execute();
-
-        if ($sql->rowCount() > 0) {
-            $user = $sql->fetch(PDO::FETCH_ASSOC);
-            if (password_verify($password, $user['password'])) {
-                session_start();
-                $_SESSION['email'] = $user['email'];
-                $response = ['status' => 'success', 'message' => 'Login successful.'];
-            } else {
-                $response['message'] = "Incorrect password.";
-            }
-        } else {
-            $response['message'] = "Email not found.";
         }
     }
 }
