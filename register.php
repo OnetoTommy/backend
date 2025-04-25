@@ -3,6 +3,7 @@
 $allowed_origins = [
     "https://bespoke-halva-fdb945.netlify.app",
     "https://stirring-hummingbird-de4c7f.netlify.app",
+    "https://super-hotteok-14c488.netlify.app",
     "http://localhost:3000"  // 本地开发调试也可以加上
   ];
   
